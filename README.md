@@ -18,9 +18,9 @@ It supports the following output formats which can be used for log search, custo
 * **leql_advanced_search**: queries in the "Advanced" format**
 * **leql_detection_definition**: queries matching the LEQL detection rule logic format roughly matching what is shown in the InsightIDR Detection Rules -> Detection Rule -> Rule Logic screen***
 
-*Ideal for use in custom alerts.
-**Ideal for use with [InsightIDR4Py](https://github.com/mbabinski/InsightIDR4Py), a module offering streamlined access to the Rapid7 LogSearch API.
-***Conceptual only - these queries are not usable within the InsightIDR interfaces mentioned above.
+*Ideal for use in custom alerts.  
+**Ideal for use with [InsightIDR4Py](https://github.com/mbabinski/InsightIDR4Py), a module offering streamlined access to the Rapid7 LogSearch API.  
+***Conceptual only - these queries are not usable within the InsightIDR interfaces mentioned above.  
 
 Sigma rules using the Sigma endswith modifier uses a regular expression for pattern matching, as LEQL contains no IENDS-WITH or IENDS-WITH-ANY modifier. 
 
