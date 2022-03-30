@@ -8,6 +8,7 @@ from sigma.modifiers import SigmaModifier, SigmaContainsModifier, SigmaAllModifi
 from sigma.types import SigmaCompareExpression, SigmaRegularExpression
 from sigma.exceptions import SigmaFeatureNotSupportedByBackendError
 from typing import ClassVar, Dict, List, Tuple, Union
+from pprint import pprint
 
 class InsightIDRBackend(TextQueryBackend):
     """InsightIDR LEQL backend."""
@@ -26,6 +27,8 @@ class InsightIDRBackend(TextQueryBackend):
     istarts_with_any_token: ClassVar[str] = "ISTARTS-WITH-ANY"
 
     str_quote : ClassVar[str] = '"'
+    str_single_quote : ClassVar[str] = "'"
+    str_triple_quote = '"""'
     escape_char : ClassVar[str] = "\\"
     wildcard_multi : ClassVar[str] = "*"
     wildcard_single : ClassVar[str] = "*"
@@ -115,36 +118,48 @@ class InsightIDRBackend(TextQueryBackend):
             result = self.re_expression.format(field=field, regex=".*{}$".format(escaped_val))
         # plain equals
         else:
-            str_val = self.no_case_str_expression.format(value=self.str_quote + self.convert_value_str(cond.value, state) + self.str_quote)
-            result = cond.field + self.token_separator + self.eq_token + self.token_separator + str_val
+            if '"' and "'" in self.convert_value_str(cond.value, state):
+                no_case_str = self.no_case_str_expression.format(value=self.str_triple_quote + self.convert_value_str(cond.value, state) + self.str_triple_quote)
+            elif '"' in self.convert_value_str(cond.value, state):
+                no_case_str = self.no_case_str_expression.format(value=self.str_single_quote + self.convert_value_str(cond.value, state) + self.str_single_quote)
+            else:
+                no_case_str = self.no_case_str_expression.format(value=self.str_quote + self.convert_value_str(cond.value, state) + self.str_quote)
+            result = cond.field + self.token_separator + self.eq_token + self.token_separator + no_case_str
 
         return result
 
 
     def convert_condition_or(self, cond : ConditionOR, state : ConversionState) -> Union[str, DeferredQueryExpression]:
         """Conversion of OR conditions."""
-        # child args are both 'field equals value' expressions
-        if cond.args[0].__class__.__name__ == "ConditionFieldEqualsValueExpression" and cond.args[1].__class__.__name__ == "ConditionFieldEqualsValueExpression":
-            vals = [arg.value.to_plain() for arg in cond.args]
-            vals_no_wc = [arg.value.to_plain().rstrip("*").lstrip("*") for arg in cond.args]
-            fields = list(set([arg.field for arg in cond.args]))
-            # contains-any
-            if len(fields) == 1 and vals[0].startswith(self.wildcard_single) and vals[0].endswith(self.wildcard_single):
-                result = fields[0] + self.token_separator + self.icontains_any_token + self.token_separator + str(vals_no_wc)
-                return result
-            # startswith-any
-            elif len(fields) == 1 and vals[0].endswith(self.wildcard_single) and not vals[0].startswith(self.wildcard_single):
-                result = fields[0] + self.token_separator + self.istarts_with_any_token + self.token_separator + str(vals_no_wc)
-                return result
-            # endswith-any
-            elif len(fields) == 1 and vals[0].startswith(self.wildcard_single) and not vals[0].endswith(self.wildcard_single):
-                field = fields[0]
-                escaped_vals = [re.escape(val).replace("/", "\\/") for val in vals_no_wc]
-                exp = "(.*{}$)".format("$|.*".join(escaped_vals))
-                result = self.re_expression.format(field=field, regex=exp)
-                return result
+        # child args all contain values
+        if all(["value" in vars(arg).keys() for arg in cond.args]):
+            args = cond.args
+            mods = [mod for mod in [arg.parent.parent.detection_items[0].modifiers for arg in args]]
+            # check whether all args have the same modifiers
+            if all(mod == mods[0] for mod in mods):
+                vals = [str(arg.value.to_plain() or "") for arg in cond.args]
+                vals_no_wc = [val.rstrip("*").lstrip("*") for val in vals]
+                fields = list(set([arg.field for arg in cond.args]))
+                # icontains-any
+                if len(fields) == 1 and vals[0].startswith(self.wildcard_single) and vals[0].endswith(self.wildcard_single):
+                    result = fields[0] + self.token_separator + self.icontains_any_token + self.token_separator + str(vals_no_wc)
+                    return result
+                # startswith-any
+                elif len(fields) == 1 and vals[0].endswith(self.wildcard_single) and not vals[0].startswith(self.wildcard_single):
+                    result = fields[0] + self.token_separator + self.istarts_with_any_token + self.token_separator + str(vals_no_wc)
+                    return result
+                # endswith-any
+                elif len(fields) == 1 and vals[0].startswith(self.wildcard_single) and not vals[0].endswith(self.wildcard_single):
+                    field = fields[0]
+                    escaped_vals = [re.escape(val).replace("/", "\\/") for val in vals_no_wc]
+                    exp = "(.*{}$)".format("$|.*".join(escaped_vals))
+                    result = self.re_expression.format(field=field, regex=exp)
+                    return result
+                else:
+                    # 'OR' fields differ
+                    return self.basic_join_or(cond, state)
+            # args have different modifiers
             else:
-                # 'OR' fields differ
                 return self.basic_join_or(cond, state)
         # child args are other 'OR' or 'AND' expressions
         else:
@@ -153,28 +168,32 @@ class InsightIDRBackend(TextQueryBackend):
 
     def convert_condition_and(self, cond : ConditionAND, state : ConversionState) -> Union[str, DeferredQueryExpression]:
         """Conversion of AND conditions."""
-        # child args are both 'field equals value' expressions
-        if cond.args[0].__class__.__name__ == "ConditionFieldEqualsValueExpression" and cond.args[1].__class__.__name__ == "ConditionFieldEqualsValueExpression":
-            vals = [arg.value.to_plain() for arg in cond.args]
-            vals_no_wc = [arg.value.to_plain().rstrip("*").lstrip("*") for arg in cond.args]
-            fields = list(set([arg.field for arg in cond.args]))
-            # parent condition has modifiers
-            if len(fields) == 1:
-                try:
-                    # icontains-all
-                    if cond.args[0].parent.parent.detection_items[0].modifiers == cond.args[1].parent.parent.detection_items[0].modifiers:
-                        if cond.args[0].parent.parent.detection_items[0].modifiers[-1].__name__ == "SigmaAllModifier":
+        # child args all contain values
+        if all(["value" in vars(arg).keys() for arg in cond.args]):
+            args = cond.args
+            mods = [mod for mod in [arg.parent.parent.detection_items[0].modifiers for arg in args]]
+            # check whether all args have the same modifiers
+            if all(mod == mods[0] for mod in mods):
+                vals = [str(arg.value.to_plain() or "") for arg in cond.args]
+                vals_no_wc = [val.rstrip("*").lstrip("*") for val in vals]
+                fields = list(set([arg.field for arg in cond.args]))
+                # parent condition has modifiers
+                if len(fields) == 1:
+                    try:
+                        # icontains-all (last condition is SigmaAllModifier or there are two values)
+                        if cond.args[0].parent.parent.detection_items[0].modifiers[-1].__name__ == "SigmaAllModifier" or len(vals) == 2:
                             result = fields[0] + self.token_separator + self.icontains_all_token + self.token_separator + str(vals_no_wc)
                             return result
                         else:
                             return self.basic_join_and(cond, state)
-                    else:
+                    except:
                         return self.basic_join_and(cond, state)
-                except:
+                else:
+                    # parent condition does not contain modifiers
                     return self.basic_join_and(cond, state)
+            # args have different modifiers
             else:
-                # parent condition does not contain modifiers
-                return self.basic_join_and(cond, state)
+                return self.basic_join_or(cond, state)
         # child args are other 'OR' or 'AND' expressions   
         else:
             return self.basic_join_and(cond, state)
