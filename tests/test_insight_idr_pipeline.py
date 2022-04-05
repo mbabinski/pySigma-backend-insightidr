@@ -20,7 +20,7 @@ def test_insight_idr_pipeline_simple():
         """)
     ) == ['process.cmd_line = NOCASE("val1") AND process.exe_path = NOCASE("val2")']
 
-def test_insight_idr_pipeline_unsupported_rule_type():
+def test_insight_idr_pipeline_unsupported_field_process_start():
     with pytest.raises(SigmaTransformationError, match="The InsightIDR backend does not support the CurrentDirectory, IntegrityLevel, or imphash fields for process start rules."):
         InsightIDRBackend(processing_pipeline=insight_idr_pipeline()).convert(
             SigmaCollection.from_yaml("""
@@ -38,7 +38,37 @@ def test_insight_idr_pipeline_unsupported_rule_type():
             """)
         )
 
-def test_insight_idr_pipeline_unsupported_field():
+def test_insight_idr_pipeline_unsupported_field_dns():
+    with pytest.raises(SigmaTransformationError, match="The InsightIDR backend does not support the ProcessID, QueryStatus, QueryResults, or Image fields for DNS events."):
+        InsightIDRBackend(processing_pipeline=insight_idr_pipeline()).convert(
+            SigmaCollection.from_yaml("""
+                title: Test
+                status: test
+                logsource:
+                    category: dns
+                detection:
+                    sel:
+                        ProcessId: 1
+                    condition: sel
+            """)
+        )
+
+def test_insight_idr_pipeline_unsupported_field_web_proxy():
+    with pytest.raises(SigmaTransformationError, match="The InsightIDR backend does not support the c-uri-extension, c-uri-stem, c-useragent, cs-cookie, cs-referrer, cs-version, or sc-status fields for web proxy events."):
+        InsightIDRBackend(processing_pipeline=insight_idr_pipeline()).convert(
+            SigmaCollection.from_yaml("""
+                title: Test
+                status: test
+                logsource:
+                    category: proxy
+                detection:
+                    sel:
+                        c-uri-extension: test
+                    condition: sel
+            """)
+        )
+
+def test_insight_idr_pipeline_unsupported_rule_type():
     with pytest.raises(SigmaTransformationError, match="Rule type not yet supported by the InsightIDR Sigma backend!"):
         InsightIDRBackend(processing_pipeline=insight_idr_pipeline()).convert(
             SigmaCollection.from_yaml("""

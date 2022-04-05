@@ -24,7 +24,7 @@ def insight_idr_pipeline():
         name="Generic Log Sources to Rapid7 InsightIDR Transformation",
         priority=10,
         items=[
-            # Process Creation
+            # Process Creation field mapping
             ProcessingItem(
                 identifier="insight_idr_process_creation_fieldmapping",
                 transformation=FieldMappingTransformation({
@@ -49,20 +49,13 @@ def insight_idr_pipeline():
                     logsource_windows_process_creation(),
                 ]
             ),
-            ProcessingItem(
-                identifier="insight_idr_process_start_logsource",
-                transformation=ChangeLogsourceTransformation(
-                    category="process_start_event",
-                    product="windows"
-                ),
-                rule_conditions=[
-                    logsource_windows_process_creation(),
-                ]
-            ),
             # Handle unsupported Process Start fields
             ProcessingItem(
                 identifier="insight_idr_fail_process_start_fields",
                 transformation=DetectionItemFailureTransformation("The InsightIDR backend does not support the CurrentDirectory, IntegrityLevel, or imphash fields for process start rules."),
+                rule_conditions=[
+                    logsource_windows_process_creation()
+                ],
                 detection_item_conditions=[
                     IncludeFieldCondition(
                         fields=[
@@ -74,8 +67,19 @@ def insight_idr_pipeline():
                     )
                 ]
             ),
+            # Change logsource properties
+            ProcessingItem(
+                identifier="insight_idr_process_start_logsource",
+                transformation=ChangeLogsourceTransformation(
+                    category="process_start_event",
+                    product="windows"
+                ),
+                rule_conditions=[
+                    logsource_windows_process_creation(),
+                ]
+            ),
 
-            # DNS Requests
+            # DNS Request field mapping
             ProcessingItem(
                 identifier="insight_idr_dns_query_fieldmapping",
                 transformation=FieldMappingTransformation({
@@ -86,24 +90,14 @@ def insight_idr_pipeline():
                     logsource_windows_dns_query(),
                 ]
             ),
-            ProcessingItem(
-                identifier="insight_idr_dns_query_logsource",
-                rule_condition_linking=any,
-                transformation=ChangeLogsourceTransformation(
-                    category="dns"
-                ),
-                rule_conditions=[
-                    logsource_windows_dns_query(),
-                    logsource_generic_dns_query()
-                ]
-            ),
             # Handle unsupported DNS query fields
             ProcessingItem(
                 identifier="insight_idr_fail_dns_fields",
-                rule_condition_linking=all,
+                rule_condition_linking=any,
                 transformation=DetectionItemFailureTransformation("The InsightIDR backend does not support the ProcessID, QueryStatus, QueryResults, or Image fields for DNS events."),
                 rule_conditions=[
-                    logsource_windows_dns_query()
+                    logsource_windows_dns_query(),
+                    logsource_generic_dns_query()
                 ],
                 detection_item_conditions=[
                     IncludeFieldCondition(
@@ -116,8 +110,20 @@ def insight_idr_pipeline():
                     )
                 ]
             ),
+            # Change log source properties
+            ProcessingItem(
+                identifier="insight_idr_dns_query_logsource",
+                rule_condition_linking=any,
+                transformation=ChangeLogsourceTransformation(
+                    category="dns"
+                ),
+                rule_conditions=[
+                    logsource_windows_dns_query(),
+                    logsource_generic_dns_query()
+                ]
+            ),
             
-            # Web Proxy
+            # Web Proxy field mapping
             ProcessingItem(
                 identifier="insight_idr_web_proxy_fieldmapping",
                 transformation=FieldMappingTransformation({
@@ -129,18 +135,8 @@ def insight_idr_pipeline():
                     "r-dns": "url_host",
                     "sc-bytes": "outgoing_bytes",
                     "src_ip": "source_ip",
-                    "dst_ip": "destination_ip",
-                    "c-useragent": "user_agent"
+                    "dst_ip": "destination_ip"
                 }),
-                rule_conditions=[
-                    logsource_web_proxy(),
-                ]
-            ),
-            ProcessingItem(
-                identifier="insight_idr_web_proxy_logsource",
-                transformation=ChangeLogsourceTransformation(
-                    category="web_proxy"
-                ),
                 rule_conditions=[
                     logsource_web_proxy(),
                 ]
@@ -148,7 +144,11 @@ def insight_idr_pipeline():
             # Handle unsupported Web Proxy event fields
             ProcessingItem(
                 identifier="insight_idr_fail_web_proxy_fields",
-                transformation=DetectionItemFailureTransformation("The InsightIDR backend does not support the c-uri-extension, c-uri-stem, cs-cookie, cs-referrer, cs-version, or sc-status fields for web proxy events."),
+                rule_condition_linking=all,
+                transformation=DetectionItemFailureTransformation("The InsightIDR backend does not support the c-uri-extension, c-uri-stem, c-useragent, cs-cookie, cs-referrer, cs-version, or sc-status fields for web proxy events."),
+                rule_conditions=[
+                    logsource_web_proxy()
+                ],
                 detection_item_conditions=[
                     IncludeFieldCondition(
                         fields=[
@@ -160,6 +160,16 @@ def insight_idr_pipeline():
                             "sc-status"
                         ]
                     )
+                ]
+            ),
+            # Change logsource property
+            ProcessingItem(
+                identifier="insight_idr_web_proxy_logsource",
+                transformation=ChangeLogsourceTransformation(
+                    category="web_proxy"
+                ),
+                rule_conditions=[
+                    logsource_web_proxy(),
                 ]
             ),
             # Firewall - this is a placeholder. Firewall rules not yet supported :(
