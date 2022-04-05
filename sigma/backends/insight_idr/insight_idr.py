@@ -57,6 +57,17 @@ class InsightIDRBackend(TextQueryBackend):
     unbound_value_re_expression : ClassVar[str] = '{value}'
     no_case_str_expression: ClassVar[str] = "NOCASE({value})"
 
+    def get_quote_type(self, string_val):
+        """Returns the shortest correct quote type (single, double, or trip) based on quote characters contained within an input string"""
+        if '"' and "'" in string_val:
+            quote = self.str_triple_quote
+        elif '"' in string_val:
+            quote = self.str_single_quote
+        else:
+            quote = self.str_quote
+
+        return quote
+
     def convert_condition_field_eq_val_re(self, cond : ConditionFieldEqualsValueExpression, state : ConversionState) -> Union[str, DeferredQueryExpression]:
         """Conversion of field matches regular expression value expressions."""
         return self.re_expression.format(
@@ -106,24 +117,20 @@ class InsightIDRBackend(TextQueryBackend):
         field = cond.field
         val = cond.value.to_plain()
         val_no_wc = val.rstrip("*").lstrip("*")
+        quote = self.get_quote_type(val)
         # contains
         if val.startswith(self.wildcard_single) and val.endswith(self.wildcard_single):
-            result = cond.field + self.token_separator + self.icontains_token + self.token_separator + self.str_quote + val_no_wc + self.str_quote
+            result = cond.field + self.token_separator + self.icontains_token + self.token_separator + quote + val_no_wc + quote
         # startswith
         elif val.endswith(self.wildcard_single) and not val.startswith(self.wildcard_single):
-            result = cond.field + self.token_separator + self.istarts_with_token + self.token_separator + self.str_quote + val_no_wc + self.str_quote
+            result = cond.field + self.token_separator + self.istarts_with_token + self.token_separator + quote + val_no_wc + quote
         # endswith
         elif val.startswith(self.wildcard_single) and not val.endswith(self.wildcard_single):
             escaped_val = re.escape(val_no_wc).replace("/", "\\/") # re.escape is not escaping the forward slash correctly :(
             result = self.re_expression.format(field=field, regex=".*{}$".format(escaped_val))
         # plain equals
         else:
-            if '"' and "'" in self.convert_value_str(cond.value, state):
-                no_case_str = self.no_case_str_expression.format(value=self.str_triple_quote + self.convert_value_str(cond.value, state) + self.str_triple_quote)
-            elif '"' in self.convert_value_str(cond.value, state):
-                no_case_str = self.no_case_str_expression.format(value=self.str_single_quote + self.convert_value_str(cond.value, state) + self.str_single_quote)
-            else:
-                no_case_str = self.no_case_str_expression.format(value=self.str_quote + self.convert_value_str(cond.value, state) + self.str_quote)
+            no_case_str = self.no_case_str_expression.format(value=quote + self.convert_value_str(cond.value, state) + quote)
             result = cond.field + self.token_separator + self.eq_token + self.token_separator + no_case_str
 
         return result
