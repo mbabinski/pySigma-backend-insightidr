@@ -37,7 +37,7 @@ class InsightIDRBackend(TextQueryBackend):
     re_escape_char : ClassVar[str] = "\\"
     re_escape : ClassVar[Tuple[str]] = ('"')
 
-    cidr_expression : ClassVar[str] = "IP({value})"
+    cidr_expression : ClassVar[str] = "{field} = IP({value})"
 
     compare_op_expression : ClassVar[str] = "{field} {operator} {value}"
     compare_operators : ClassVar[Dict[SigmaCompareExpression.CompareOperators, str]] = {
