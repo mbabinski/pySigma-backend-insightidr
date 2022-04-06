@@ -136,7 +136,7 @@ def test_insight_idr_contains_any_query(insight_idr_backend : InsightIDRBackend)
                             - 'val3'
                     condition: selection
             """)
-        ) == ["field ICONTAINS-ANY ['val1', 'val2', 'val3']"]
+        ) == ['field ICONTAINS-ANY ["val1", "val2", "val3"]']
 
 def test_insight_idr_contains_all_query(insight_idr_backend : InsightIDRBackend):
     assert insight_idr_backend.convert(
@@ -154,7 +154,7 @@ def test_insight_idr_contains_all_query(insight_idr_backend : InsightIDRBackend)
                             - 'val3'
                     condition: selection
             """)
-        ) == ["field ICONTAINS-ALL ['val1', 'val2', 'val3']"]
+        ) == ['field ICONTAINS-ALL ["val1", "val2", "val3"]']
 
 def test_insight_idr_startswith_any_query(insight_idr_backend : InsightIDRBackend):
     assert insight_idr_backend.convert(
@@ -172,7 +172,7 @@ def test_insight_idr_startswith_any_query(insight_idr_backend : InsightIDRBacken
                             - 'val3'
                     condition: selection
             """)
-        ) == ["field ISTARTS-WITH-ANY ['val1', 'val2', 'val3']"]
+        ) == ['field ISTARTS-WITH-ANY ["val1", "val2", "val3"]']
 
 def test_insight_idr_endswith_any_query(insight_idr_backend : InsightIDRBackend):
     assert insight_idr_backend.convert(
@@ -236,3 +236,26 @@ def test_insight_idr_base64_query(insight_idr_backend : InsightIDRBackend):
                     condition: selection
             """)
         ) == ['field = NOCASE("c2lnbWEgcnVsZXMh")']
+
+def test_insight_idr_condition_nested_logic(insight_idr_backend : InsightIDRBackend):
+    assert insight_idr_backend.convert(
+            SigmaCollection.from_yaml("""
+                title: Test
+                status: test
+                logsource:
+                    category: test_category
+                    product: test_product
+                detection:
+                    sel1:
+                        field|contains:
+                            - val1
+                            - val2
+                    sel2a:
+                        field|endswith:
+                            - val3
+                    sel2b:
+                        field|contains:
+                            - val4
+                    condition: sel1 or (sel2a and sel2b)
+            """)
+        ) == ['field ICONTAINS-ANY ["val1", "val2"] OR field=/.*val3$/i AND field ICONTAINS "val4"']

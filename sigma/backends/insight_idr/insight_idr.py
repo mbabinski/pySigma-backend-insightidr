@@ -1,14 +1,12 @@
 from sigma.conversion.state import ConversionState
-from sigma.types import re
-from sigma.rule import SigmaRule, SigmaDetection, SigmaDetectionItem
+from sigma.types import re, SigmaString
+from sigma.rule import SigmaRule
 from sigma.conversion.base import TextQueryBackend
 from sigma.conversion.deferred import DeferredQueryExpression, DeferredTextQueryExpression
-from sigma.conditions import ConditionFieldEqualsValueExpression, ConditionOR, ConditionAND, ConditionSelector
-from sigma.modifiers import SigmaModifier, SigmaContainsModifier, SigmaAllModifier
-from sigma.types import SigmaCompareExpression, SigmaRegularExpression
+from sigma.conditions import ConditionFieldEqualsValueExpression, ConditionOR, ConditionAND, ConditionFieldValueInExpression
+from sigma.types import SigmaCompareExpression
 from sigma.exceptions import SigmaFeatureNotSupportedByBackendError
 from typing import ClassVar, Dict, List, Tuple, Union
-from pprint import pprint
 
 class InsightIDRBackend(TextQueryBackend):
     """InsightIDR LEQL backend."""
@@ -50,6 +48,9 @@ class InsightIDRBackend(TextQueryBackend):
     field_null_expression : ClassVar[str] = '{field} = ""'
 
     field_in_list_expression : ClassVar[str] = "{field} IIN [{list}]"
+    field_icontains_any_expression : ClassVar[str] = "{field} ICONTAINS-ANY [{list}]"
+    field_icontains_all_expression : ClassVar[str] = "{field} ICONTAINS-ALL [{list}]"
+    field_istarts_with_any_expression : ClassVar[str] = "{field} ISTARTS-WITH-ANY [{list}]"
     list_separator : ClassVar[str] = ", "
 
     unbound_value_str_expression : ClassVar[str] = '"{value}"'
@@ -67,13 +68,6 @@ class InsightIDRBackend(TextQueryBackend):
             quote = self.str_quote
 
         return quote
-
-    def convert_condition_field_eq_val_re(self, cond : ConditionFieldEqualsValueExpression, state : ConversionState) -> Union[str, DeferredQueryExpression]:
-        """Conversion of field matches regular expression value expressions."""
-        return self.re_expression.format(
-            field=cond.field,
-            regex=cond.value.regexp
-        )
 
     def basic_join_or(self, cond, state):
         """Default conversion of OR conditions"""
@@ -136,6 +130,67 @@ class InsightIDRBackend(TextQueryBackend):
         return result
 
 
+    def convert_condition_field_eq_val_re(self, cond : ConditionFieldEqualsValueExpression, state : ConversionState) -> Union[str, DeferredQueryExpression]:
+        """Conversion of field matches regular expression value expressions."""
+        return self.re_expression.format(
+            field=cond.field,
+            regex=cond.value.regexp
+        )
+    
+
+    def convert_condition_field_in_vals(self, cond : ConditionFieldValueInExpression, state : ConversionState) -> Union[str, DeferredQueryExpression]:
+        """Conversion of field in value list conditions."""
+        result = self.field_in_list_expression.format(
+            field=cond.field,
+            list=self.list_separator.join([
+                self.get_quote_type(self.convert_value_str(v, state)) + v.to_plain() + self.get_quote_type(self.convert_value_str(v, state)) if isinstance(v, SigmaString)   # string escaping and qouting
+                else str(v)       # value is number
+                for v in cond.value
+            ]),
+        )
+
+        return result
+
+
+    def convert_icontains_any(self, field, values):
+        """Conversion of field contains any in list conditions."""
+        result = self.field_icontains_any_expression.format(field=field,
+                                                                list=self.list_separator.join([
+                                                                    self.get_quote_type(v) + v + self.get_quote_type(v) if isinstance(v, str)
+                                                                    else str(v)
+                                                                    for v in values
+                                                                ]),
+                                                            )
+
+        return result
+
+
+    def convert_icontains_all(self, field, values):
+        """Conversion of field contains all in list conditions."""
+        result = self.field_icontains_all_expression.format(field=field,
+                                                                list=self.list_separator.join([
+                                                                    self.get_quote_type(v) + v + self.get_quote_type(v) if isinstance(v, str)
+                                                                    else str(v)
+                                                                    for v in values
+                                                                ]),
+                                                            )
+
+        return result
+
+
+    def convert_istarts_with_any(self, field, values):
+        """Conversion of field starts with any in list conditions."""
+        result = self.field_istarts_with_any_expression.format(field=field,
+                                                                list=self.list_separator.join([
+                                                                    self.get_quote_type(v) + v + self.get_quote_type(v) if isinstance(v, str)
+                                                                    else str(v)
+                                                                    for v in values
+                                                                ]),
+                                                            )
+
+        return result
+
+
     def convert_condition_or(self, cond : ConditionOR, state : ConversionState) -> Union[str, DeferredQueryExpression]:
         """Conversion of OR conditions."""
         # child args all contain values
@@ -149,11 +204,11 @@ class InsightIDRBackend(TextQueryBackend):
                 fields = list(set([arg.field for arg in cond.args]))
                 # icontains-any
                 if len(fields) == 1 and vals[0].startswith(self.wildcard_single) and vals[0].endswith(self.wildcard_single):
-                    result = fields[0] + self.token_separator + self.icontains_any_token + self.token_separator + str(vals_no_wc)
+                    result = self.convert_icontains_any(fields[0], vals_no_wc)
                     return result
                 # startswith-any
                 elif len(fields) == 1 and vals[0].endswith(self.wildcard_single) and not vals[0].startswith(self.wildcard_single):
-                    result = fields[0] + self.token_separator + self.istarts_with_any_token + self.token_separator + str(vals_no_wc)
+                    result = self.convert_istarts_with_any(fields[0], vals_no_wc)
                     return result
                 # endswith-any
                 elif len(fields) == 1 and vals[0].startswith(self.wildcard_single) and not vals[0].endswith(self.wildcard_single):
@@ -182,6 +237,7 @@ class InsightIDRBackend(TextQueryBackend):
             # check whether all args have the same modifiers
             if all(mod == mods[0] for mod in mods):
                 vals = [str(arg.value.to_plain() or "") for arg in cond.args]
+                vals = [arg.value.to_plain() or "" for arg in cond.args]
                 vals_no_wc = [val.rstrip("*").lstrip("*") for val in vals]
                 fields = list(set([arg.field for arg in cond.args]))
                 # parent condition has modifiers
@@ -189,7 +245,7 @@ class InsightIDRBackend(TextQueryBackend):
                     try:
                         # icontains-all (last condition is SigmaAllModifier or there are two values)
                         if cond.args[0].parent.parent.detection_items[0].modifiers[-1].__name__ == "SigmaAllModifier" or len(vals) == 2:
-                            result = fields[0] + self.token_separator + self.icontains_all_token + self.token_separator + str(vals_no_wc)
+                            result = self.convert_icontains_all(fields[0], vals_no_wc)
                             return result
                         else:
                             return self.basic_join_and(cond, state)
@@ -200,7 +256,7 @@ class InsightIDRBackend(TextQueryBackend):
                     return self.basic_join_and(cond, state)
             # args have different modifiers
             else:
-                return self.basic_join_or(cond, state)
+                return self.basic_join_and(cond, state)
         # child args are other 'OR' or 'AND' expressions   
         else:
             return self.basic_join_and(cond, state)
