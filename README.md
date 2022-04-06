@@ -56,15 +56,14 @@ for rule in process_start_rule_collection.rules:
 with resulting output:
 ```
 Webshell Detection With Command Line Keywords conversion:
-where((parent_process.exe_path=/(.*\\w3wp\.exe$|.*\\php\-cgi\.exe$|.*\\nginx\.exe$|.*\\httpd\.exe$)/i OR parent_process.exe_path ICONTAINS-ANY ['\\apache', '\\tomcat']) AND ((process.exe_path=/(.*\\net\.exe$|.*\\net1\.exe$)/i) AND (process.cmd_line ICONTAINS-ANY [' user ', ' use ', ' group ']) OR process.exe_path=/.*\\ping\.exe$/i AND process.cmd_line ICONTAINS " -n " OR process.cmd_line ICONTAINS-ANY ['&cd&echo', 'cd /d '] OR process.exe_path=/.*\\wmic\.exe$/i AND process.cmd_line ICONTAINS " /node:" OR process.exe_path=/(.*\\whoami\.exe$|.*\\systeminfo\.exe$|.*\\quser\.exe$|.*\\ipconfig\.exe$|.*\\pathping\.exe$|.*\\tracert\.exe$|.*\\netstat\.exe$|.*\\schtasks\.exe$|.*\\vssadmin\.exe$|.*\\wevtutil\.exe$|.*\\tasklist\.exe$)/i OR process.cmd_line ICONTAINS-ANY [' Test-NetConnection ', 'dir \\']))
-
+where((parent_process.exe_path=/(.*\\w3wp\.exe$|.*\\php\-cgi\.exe$|.*\\nginx\.exe$|.*\\httpd\.exe$)/i OR parent_process.exe_path ICONTAINS-ANY ["\apache", "\tomcat"]) AND ((process.exe_path=/(.*\\net\.exe$|.*\\net1\.exe$)/i) AND (process.cmd_line ICONTAINS-ANY [" user ", " use ", " group "]) OR process.exe_path=/.*\\ping\.exe$/i AND process.cmd_line ICONTAINS " -n " OR process.cmd_line ICONTAINS-ANY ["&cd&echo", "cd /d "] OR process.exe_path=/.*\\wmic\.exe$/i AND process.cmd_line ICONTAINS " /node:" OR process.exe_path=/(.*\\whoami\.exe$|.*\\systeminfo\.exe$|.*\\quser\.exe$|.*\\ipconfig\.exe$|.*\\pathping\.exe$|.*\\tracert\.exe$|.*\\netstat\.exe$|.*\\schtasks\.exe$|.*\\vssadmin\.exe$|.*\\wevtutil\.exe$|.*\\tasklist\.exe$)/i OR process.cmd_line ICONTAINS-ANY [" Test-NetConnection ", "dir \"]))
 
 Windows Cmd Delete File conversion:
-where(process.cmd_line ICONTAINS-ALL ['del ', '/f'] OR process.cmd_line ICONTAINS-ALL ['rmdir', '/s', '/q'])
+where(process.cmd_line ICONTAINS-ALL ["del ", "/f"] OR process.cmd_line ICONTAINS-ALL ["rmdir", "/s", "/q"])
 
 
 Suspicious Rundll32 Activity conversion:
-where(process.cmd_line ICONTAINS-ALL ['javascript:', '.RegisterXLL'] OR process.cmd_line ICONTAINS-ALL ['url.dll', 'OpenURL'] OR process.cmd_line ICONTAINS-ALL ['url.dll', 'OpenURLA'] OR process.cmd_line ICONTAINS-ALL ['url.dll', 'FileProtocolHandler'] OR process.cmd_line ICONTAINS-ALL ['zipfldr.dll', 'RouteTheCall'] OR process.cmd_line ICONTAINS-ALL ['shell32.dll', 'Control_RunDLL'] OR process.cmd_line ICONTAINS-ALL ['shell32.dll', 'ShellExec_RunDLL'] OR process.cmd_line ICONTAINS-ALL ['mshtml.dll', 'PrintHTML'] OR process.cmd_line ICONTAINS-ALL ['advpack.dll', 'LaunchINFSection'] OR process.cmd_line ICONTAINS-ALL ['advpack.dll', 'RegisterOCX'] OR process.cmd_line ICONTAINS-ALL ['ieadvpack.dll', 'LaunchINFSection'] OR process.cmd_line ICONTAINS-ALL ['ieadvpack.dll', 'RegisterOCX'] OR process.cmd_line ICONTAINS-ALL ['ieframe.dll', 'OpenURL'] OR process.cmd_line ICONTAINS-ALL ['shdocvw.dll', 'OpenURL'] OR process.cmd_line ICONTAINS-ALL ['syssetup.dll', 'SetupInfObjectInstallAction'] OR process.cmd_line ICONTAINS-ALL ['setupapi.dll', 'InstallHinfSection'] OR process.cmd_line ICONTAINS-ALL ['pcwutl.dll', 'LaunchApplication'] OR process.cmd_line ICONTAINS-ALL ['dfshim.dll', 'ShOpenVerbApplication'])
+where(process.cmd_line ICONTAINS-ALL ["javascript:", ".RegisterXLL"] OR process.cmd_line ICONTAINS-ALL ["url.dll", "OpenURL"] OR process.cmd_line ICONTAINS-ALL ["url.dll", "OpenURLA"] OR process.cmd_line ICONTAINS-ALL ["url.dll", "FileProtocolHandler"] OR process.cmd_line ICONTAINS-ALL ["zipfldr.dll", "RouteTheCall"] OR process.cmd_line ICONTAINS-ALL ["shell32.dll", "Control_RunDLL"] OR process.cmd_line ICONTAINS-ALL ["shell32.dll", "ShellExec_RunDLL"] OR process.cmd_line ICONTAINS-ALL ["mshtml.dll", "PrintHTML"] OR process.cmd_line ICONTAINS-ALL ["advpack.dll", "LaunchINFSection"] OR process.cmd_line ICONTAINS-ALL ["advpack.dll", "RegisterOCX"] OR process.cmd_line ICONTAINS-ALL ["ieadvpack.dll", "LaunchINFSection"] OR process.cmd_line ICONTAINS-ALL ["ieadvpack.dll", "RegisterOCX"] OR process.cmd_line ICONTAINS-ALL ["ieframe.dll", "OpenURL"] OR process.cmd_line ICONTAINS-ALL ["shdocvw.dll", "OpenURL"] OR process.cmd_line ICONTAINS-ALL ["syssetup.dll", "SetupInfObjectInstallAction"] OR process.cmd_line ICONTAINS-ALL ["setupapi.dll", "InstallHinfSection"] OR process.cmd_line ICONTAINS-ALL ["pcwutl.dll", "LaunchApplication"] OR process.cmd_line ICONTAINS-ALL ["dfshim.dll", "ShOpenVerbApplication"])
 ```
 
 ## Limitations and Constraints
@@ -86,6 +85,7 @@ DNS query events
 Web proxy events
 * c-uri-extension
 * c-uri-stem
+* c-useragent
 * cs-referrer
 * cs-version
 * sc-status
