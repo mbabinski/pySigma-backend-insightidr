@@ -45,7 +45,7 @@ class InsightIDRBackend(TextQueryBackend):
         SigmaCompareExpression.CompareOperators.GTE : ">=",
     }
 
-    field_null_expression : ClassVar[str] = '{field} = ""'
+    field_null_expression : ClassVar[str] = "{field} = null"
 
     field_in_list_expression : ClassVar[str] = "{field} IIN [{list}]"
     field_icontains_any_expression : ClassVar[str] = "{field} ICONTAINS-ANY [{list}]"
