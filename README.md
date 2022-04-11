@@ -1,5 +1,7 @@
 # pySigma InsightIDR Backend
 
+**Note**: This repository is now archived. It was transfered to and should now be accessed from it's official home at [SigmaHQ](https://github.com/SigmaHQ/pySigma-backend-insightidr)!
+
 ## Overview
 This is the Rapid7 [InsightIDR](https://www.rapid7.com/products/insightidr/) backend for [pySigma](https://github.com/SigmaHQ/pySigma), capable of converting Sigma rules into [Log Entry Query Language (LEQL)](https://docs.rapid7.com/insightidr/use-a-search-language) queries compatible with the InsightIDR SIEM. It provides the package `sigma.backends.insight_idr` with the `InsightIDRBackend` class.
 Further, it contains the processing pipeline `sigma.pipelines.insight_idr`, which performs field mapping and error handling.
